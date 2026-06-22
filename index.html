@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="EmpLookup">
+<title>Employee Lookup</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f7;color:#1a1a1a;min-height:100vh}
+  .app{max-width:480px;margin:0 auto;padding:16px}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#666;margin-bottom:20px}
+  .btn{padding:10px 18px;background:#1a1a1a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s}
+  .btn:active{opacity:.75}
+  .btn-outline{padding:8px 16px;background:#fff;color:#1a1a1a;border:1px solid #ddd;border-radius:10px;font-size:13px;cursor:pointer}
+  .btn-link{background:none;border:none;color:#378ADD;font-size:12px;cursor:pointer;text-decoration:underline;padding:0}
+  input[type=text]{flex:1;padding:10px 14px;font-size:15px;border:1px solid #ddd;border-radius:10px;background:#fff;letter-spacing:.05em;text-transform:uppercase;font-family:monospace;outline:none;width:100%}
+  input[type=text]:focus{border-color:#378ADD;box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+  .search-row{display:flex;gap:8px;margin-bottom:12px}
+  .card{background:#fff;border-radius:14px;border:1px solid #eee;padding:16px;margin-bottom:12px}
+  .emp-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .avatar{width:46px;height:46px;border-radius:50%;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#185FA5;flex-shrink:0}
+  .emp-name{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .emp-desig{font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+  .emp-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;padding-top:12px;border-top:1px solid #f0f0f0}
+  .meta-item label{font-size:10px;color:#999;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em}
+  .meta-item span{font-size:13px;font-weight:500}
+  .tabs{display:flex;border-bottom:1px solid #e5e5e5;margin-bottom:12px}
+  .tab{flex:1;padding:10px 0;font-size:13px;font-weight:500;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#888}
+  .tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a}
+  .record{background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 14px;margin-bottom:8px}
+  .rec-title{font-size:13px;font-weight:600;margin-bottom:4px;line-height:1.4}
+  .rec-sub{font-size:12px;color:#444;margin-bottom:4px;line-height:1.4}
+  .rec-univ{font-size:12px;color:#378ADD;margin-bottom:6px;font-style:italic}
+  .rec-code{font-size:11px;color:#888;font-family:monospace;margin-bottom:6px}
+  .rec-dates{display:flex;gap:20px;padding-top:8px;border-top:1px solid #f0f0f0}
+  .date-item label{font-size:10px;color:#999;display:block;text-transform:uppercase;letter-spacing:.04em}
+  .date-item span{font-size:12px;font-weight:500}
+  .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .badge{font-size:11px;background:#f5f5f5;border:1px solid #e8e8e8;border-radius:6px;padding:3px 8px;color:#555}
+  .empty{text-align:center;padding:24px 0;color:#aaa;font-size:13px}
+  .alert{padding:12px 14px;border-radius:10px;font-size:13px;margin-bottom:12px;line-height:1.6}
+  .alert-warn{background:#FFF8E1;border:1px solid #FFE082;color:#7A5800}
+  .drop-zone{border:2px dashed #ccc;border-radius:14px;padding:28px 16px;text-align:center;background:#fff;cursor:pointer;transition:border-color .2s;margin-bottom:12px}
+  .drop-zone:hover,.drop-zone.drag{border-color:#378ADD}
+  .drop-icon{font-size:36px;margin-bottom:8px}
+  .drop-title{font-size:15px;font-weight:600;margin-bottom:4px}
+  .drop-sub{font-size:12px;color:#888;line-height:1.6}
+  .spinner{display:inline-block;width:28px;height:28px;border:3px solid #e0e0e0;border-top-color:#378ADD;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .progress-wrap{background:#f0f0f0;border-radius:999px;height:6px;margin:12px 0 6px;overflow:hidden}
+  .progress-bar{height:6px;border-radius:999px;background:#378ADD;transition:width .4s}
+  .file-bar{background:#E8F5E9;border:1px solid #C8E6C9;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .file-bar span{font-size:12px;color:#2E7D32;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .file-bar-btns{display:flex;gap:6px;flex-shrink:0}
+  .debug-box{background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px;font-size:11px;font-family:monospace;color:#333;line-height:1.7;white-space:pre-wrap;word-break:break-all;display:none}
+  .install-banner{background:#EDE7F6;border:1px solid #B39DDB;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:none;align-items:center;gap:10px}
+  .install-banner p{font-size:13px;color:#4527A0;flex:1;margin:0}
+  .install-banner button{background:#673AB7;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;flex-shrink:0}
+  .cached-banner{background:#E3F2FD;border:1px solid #90CAF9;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0D47A1;display:none;align-items:center;justify-content:space-between;gap:8px}
+  .cached-banner span{flex:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>👤 Employee Lookup</h1>
+  <p class="sub">Training &amp; Education Records</p>
+
+  <div class="install-banner" id="install-banner">
+    <p>📱 Install this app on your home screen!</p>
+    <button onclick="installApp()">Install</button>
+  </div>
+
+  <!-- Upload -->
+  <div id="upload-section">
+    <div class="cached-banner" id="cached-banner">
+      <span id="cached-msg"></span>
+      <button class="btn" onclick="loadFromCache()" style="padding:7px 14px;font-size:12px;flex-shrink:0">Load cached</button>
+    </div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="drop-icon">📊</div>
+      <div class="drop-title">Load your Excel file</div>
+      <div class="drop-sub">Tap to browse<br>Sheet1 · Sheet2 · Sheet3</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xlsm,.xls" style="display:none">
+  </div>
+
+  <!-- Loading -->
+  <div id="loading-section" style="display:none">
+    <div class="card" style="text-align:center;padding:28px 16px">
+      <div class="spinner"></div>
+      <p id="load-msg" style="font-size:14px;font-weight:500;margin:12px 0 4px">Reading file…</p>
+      <div class="progress-wrap"><div class="progress-bar" id="prog" style="width:5%"></div></div>
+      <p class="sub" id="load-sub" style="margin:0">Please wait</p>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div id="main-section" style="display:none">
+    <div class="file-bar">
+      <span id="file-label">✓ Data loaded</span>
+      <div class="file-bar-btns">
+        <button class="btn-outline" onclick="reloadFile()" style="padding:6px 10px;font-size:11px">🔄 Update</button>
+        <button class="btn-outline" onclick="clearCache()" style="padding:6px 10px;font-size:11px;color:#c00">✕ Clear</button>
+      </div>
+    </div>
+    <div class="search-row">
+      <input type="text" id="cpf-input" placeholder="Enter CPF No (8 chars)" maxlength="8" onkeydown="if(event.key==='Enter')doLookup()">
+      <button class="btn" onclick="doLookup()">Search</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px 14px;margin-bottom:12px">
+      <span style="font-size:13px;color:#555;flex:1">📅 Show training from last</span>
+      <input type="number" id="years-input" value="5" min="1" max="99" style="width:56px;padding:6px 8px;font-size:15px;font-weight:600;border:1px solid #ddd;border-radius:8px;text-align:center;outline:none;font-family:inherit" onchange="if(db&&document.getElementById('result-area').innerHTML)doLookup()">
+      <span style="font-size:13px;color:#555">years only</span>
+    </div>
+    <button class="btn-link" onclick="toggleDebug()" style="margin-bottom:12px;display:block">🔍 Diagnostics</button>
+    <div class="debug-box" id="debug-box"></div>
+    <div id="result-area"></div>
+  </div>
+</div>
+
+<script>
+var db=null, debugInfo='', deferredPrompt=null;
+var IDB_NAME='EmpLookupDB', IDB_STORE='files', IDB_KEY='excel';
+
+// ── IndexedDB helpers ─────────────────────────────────────────────────
+function openIDB(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open(IDB_NAME,1);
+    r.onupgradeneeded=function(e){e.target.result.createObjectStore(IDB_STORE);};
+    r.onsuccess=function(e){res(e.target.result);};
+    r.onerror=function(e){rej(e);};
+  });
+}
+function saveToIDB(arrayBuffer, fileName){
+  return openIDB().then(function(idb){
+    return new Promise(function(res,rej){
+      var tx=idb.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put({buf:arrayBuffer,name:fileName,date:new Date().toLocaleDateString()},IDB_KEY);
+      tx.oncomplete=function(){res();};
+      tx.onerror=function(e){rej(e);};
+    });
+  });
+}
+function loadFromIDB(){
+  return openIDB().then(function(idb){
+    return new Promise(function(res,rej){
+      var tx=idb.transaction(IDB_STORE,'readonly');
+      var r=tx.objectStore(IDB_STORE).get(IDB_KEY);
+      r.onsuccess=function(e){res(e.target.result||null);};
+      r.onerror=function(e){rej(e);};
+    });
+  });
+}
+function deleteFromIDB(){
+  return openIDB().then(function(idb){
+    return new Promise(function(res,rej){
+      var tx=idb.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).delete(IDB_KEY);
+      tx.oncomplete=function(){res();};
+      tx.onerror=function(e){rej(e);};
+    });
+  });
+}
+
+// ── PWA install ───────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault(); deferredPrompt=e;
+  document.getElementById('install-banner').style.display='flex';
+});
+function installApp(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(function(){deferredPrompt=null;document.getElementById('install-banner').style.display='none';});
+}
+window.addEventListener('appinstalled',function(){document.getElementById('install-banner').style.display='none';});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(e){console.warn('SW:',e);});}
+
+// ── Utility ───────────────────────────────────────────────────────────
+function norm(v){return String(v||'').trim().toUpperCase();}
+function pad(n){return String(n).padStart(2,'0');}
+function parseDate(val){
+  if(val===''||val===null||val===undefined)return '';
+  if(typeof val==='string')return val;
+  if(typeof val==='number'){try{var d=XLSX.SSF.parse_date_code(val);if(d)return pad(d.d)+'-'+pad(d.m)+'-'+d.y;}catch(e){}return String(val);}
+  if(val instanceof Date)return pad(val.getDate())+'-'+pad(val.getMonth()+1)+'-'+val.getFullYear();
+  return String(val);
+}
+function getF(obj,keys){
+  if(!obj)return '';
+  var ok=Object.keys(obj);
+  for(var i=0;i<keys.length;i++){var t=norm(keys[i]);var f=ok.find(function(k){return norm(k)===t;});if(f!==undefined){var v=obj[f];if(v!==''&&v!==undefined&&v!==null)return String(v);}}
+  return '';
+}
+function getDF(obj,keys){
+  if(!obj)return '';
+  var ok=Object.keys(obj);
+  for(var i=0;i<keys.length;i++){var t=norm(keys[i]);var f=ok.find(function(k){return norm(k)===t;});if(f!==undefined){var v=obj[f];if(v!==''&&v!==undefined&&v!==null)return parseDate(v);}}
+  return '';
+}
+function cpfKey(row){
+  var variants=['CPFNO','CPF NO','CPF_NO','CPF','CPFNUMBER'];
+  var ok=Object.keys(row);
+  for(var i=0;i<variants.length;i++){var f=ok.find(function(k){return norm(k)===variants[i];});if(f!==undefined&&row[f]!==''&&row[f]!==undefined)return norm(row[f]);}
+  return '';
+}
+function findSheet(wb,patterns){
+  for(var i=0;i<patterns.length;i++){var p=norm(patterns[i]);var sn=wb.SheetNames.find(function(s){return norm(s)===p||norm(s).indexOf(p)!==-1;});if(sn)return sn;}
+  return null;
+}
+function setProgress(pct,msg,sub){
+  document.getElementById('prog').style.width=pct+'%';
+  if(msg)document.getElementById('load-msg').textContent=msg;
+  if(sub!==undefined)document.getElementById('load-sub').textContent=sub;
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function initials(n){return(n||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase()||'?';}
+
+// ── Process workbook ──────────────────────────────────────────────────
+function processWorkbook(wb,fileName){
+  var sn1=findSheet(wb,['Sheet1','SHEET1','Training','TRAINING','TRG'])||wb.SheetNames[0];
+  var sn2=findSheet(wb,['Sheet2','SHEET2','Education','EDUCATION','EDU','QUAL'])||wb.SheetNames[1];
+  var sn3=findSheet(wb,['Sheet3','SHEET3','Employee','EMPLOYEES','EMP','MASTER'])||wb.SheetNames[2];
+
+  debugInfo='=== SHEETS ===\n';
+  wb.SheetNames.forEach(function(s,i){debugInfo+=(i+1)+'. "'+s+'"\n';});
+  debugInfo+='\nTraining:"'+sn1+'" | Education:"'+sn2+'" | Employees:"'+sn3+'"\n';
+
+  setProgress(60,'Processing sheets…','Building index');
+  function readSheet(sn){if(!sn)return [];return XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:'',raw:false});}
+  var s1=readSheet(sn1),s2=readSheet(sn2),s3=readSheet(sn3);
+
+  debugInfo+='\n=== COLUMNS ===\n';
+  debugInfo+='Training:  '+(s1.length?Object.keys(s1[0]).join(' | '):'empty')+'\n';
+  debugInfo+='Education: '+(s2.length?Object.keys(s2[0]).join(' | '):'empty')+'\n';
+  debugInfo+='Employees: '+(s3.length?Object.keys(s3[0]).join(' | '):'empty')+'\n';
+  if(s3.length){
+    debugInfo+='\n=== FIRST EMPLOYEE ROW ===\n';
+    Object.keys(s3[0]).forEach(function(k){debugInfo+='"'+k+'" = "'+String(s3[0][k])+'"\n';});
+  } else { debugInfo+='\n=== FIRST EMPLOYEE ROW === EMPTY!\n'; }
+  if(s2.length){
+    debugInfo+='\n=== FIRST EDUCATION ROW ===\n';
+    Object.keys(s2[0]).forEach(function(k){debugInfo+='"'+k+'" = "'+String(s2[0][k])+'"\n';});
+    debugInfo+='\n=== SECOND EDUCATION ROW ===\n';
+    if(s2.length>1) Object.keys(s2[1]).forEach(function(k){debugInfo+='"'+k+'" = "'+String(s2[1][k])+'"\n';});
+  } else { debugInfo+='\n=== FIRST EDUCATION ROW === EMPTY! Sheet2 has no data\n'; }
+  if(s1.length){
+    debugInfo+='\n=== FIRST TRAINING ROW ===\n';
+    Object.keys(s1[0]).forEach(function(k){debugInfo+='"'+k+'" = "'+String(s1[0][k])+'"\n';});
+  } else { debugInfo+='\n=== FIRST TRAINING ROW === EMPTY! Sheet1 has no data\n'; }
+
+  setProgress(80,'Indexing records…','');
+  var empMap={},trainMap={},eduMap={};
+  s3.forEach(function(r){var c=cpfKey(r);if(c)empMap[c]=r;});
+  s1.forEach(function(r){var c=cpfKey(r);if(!c)return;if(!trainMap[c])trainMap[c]=[];trainMap[c].push(r);});
+  s2.forEach(function(r){var c=cpfKey(r);if(!c)return;if(!eduMap[c])eduMap[c]=[];eduMap[c].push(r);});
+
+  var sampleCPF=Object.keys(empMap)[0]||Object.keys(trainMap)[0]||'';
+  debugInfo+='\n=== COUNTS ===\nEmployees: '+Object.keys(empMap).length+'\nTraining: '+Object.keys(trainMap).length+'\nEducation: '+Object.keys(eduMap).length;
+  if(sampleCPF)debugInfo+='\n\nSample CPF: "'+sampleCPF+'"';
+  document.getElementById('debug-box').textContent=debugInfo;
+
+  db={empMap:empMap,trainMap:trainMap,eduMap:eduMap};
+  setProgress(100,'Ready!','');
+  setTimeout(function(){
+    document.getElementById('loading-section').style.display='none';
+    document.getElementById('upload-section').style.display='none';
+    document.getElementById('main-section').style.display='block';
+    document.getElementById('file-label').textContent='✓ '+Object.keys(empMap).length+' emp · '+s1.length+' trg · '+s2.length+' edu · Loaded: '+(fileName||'');
+    document.getElementById('cpf-input').focus();
+  },400);
+}
+
+// ── Load from file ────────────────────────────────────────────────────
+function loadArrayBuffer(buf, fileName, saveCache){
+  document.getElementById('upload-section').style.display='none';
+  document.getElementById('loading-section').style.display='block';
+  setProgress(10,'Reading file…','Please wait — large files take a moment');
+  setTimeout(function(){
+    try{
+      setProgress(40,'Parsing Excel…','');
+      var wb=XLSX.read(buf,{type:'array',cellDates:false,raw:false});
+      if(saveCache){
+        setProgress(50,'Saving to device…','');
+        saveToIDB(buf, fileName).catch(function(e){console.warn('IDB save failed:',e);});
+      }
+      processWorkbook(wb, fileName);
+    }catch(err){
+      document.getElementById('loading-section').style.display='none';
+      document.getElementById('upload-section').style.display='block';
+      alert('Could not read file: '+err.message+'\n\nTip: Re-save the file in Excel as .xlsx and try again.');
+    }
+  },50);
+}
+
+function loadFromCache(){
+  document.getElementById('cached-banner').style.display='none';
+  document.getElementById('loading-section').style.display='block';
+  document.getElementById('upload-section').style.display='none';
+  setProgress(5,'Loading from device cache…','');
+  loadFromIDB().then(function(rec){
+    if(rec && rec.buf){
+      loadArrayBuffer(rec.buf, rec.name+' (cached '+rec.date+')', false);
+    } else {
+      document.getElementById('loading-section').style.display='none';
+      document.getElementById('upload-section').style.display='block';
+      alert('No cached file found. Please load the Excel file.');
+    }
+  }).catch(function(){
+    document.getElementById('loading-section').style.display='none';
+    document.getElementById('upload-section').style.display='block';
+  });
+}
+
+document.getElementById('file-input').addEventListener('change',function(e){
+  var file=e.target.files[0]; if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){loadArrayBuffer(ev.target.result, file.name, true);};
+  reader.onerror=function(){alert('File read failed.');};
+  reader.readAsArrayBuffer(file);
+});
+
+var dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});
+dz.addEventListener('drop',function(e){
+  e.preventDefault();dz.classList.remove('drag');
+  var file=e.dataTransfer.files[0]; if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){loadArrayBuffer(ev.target.result,file.name,true);};
+  reader.readAsArrayBuffer(file);
+});
+
+function reloadFile(){
+  db=null;
+  document.getElementById('main-section').style.display='none';
+  document.getElementById('result-area').innerHTML='';
+  document.getElementById('cpf-input').value='';
+  document.getElementById('file-input').value='';
+  // Check cache again
+  checkCache();
+}
+
+function clearCache(){
+  if(!confirm('Remove cached Excel file from this device?'))return;
+  deleteFromIDB().then(function(){
+    db=null;
+    document.getElementById('main-section').style.display='none';
+    document.getElementById('result-area').innerHTML='';
+    document.getElementById('cpf-input').value='';
+    document.getElementById('cached-banner').style.display='none';
+    document.getElementById('upload-section').style.display='block';
+  });
+}
+
+function toggleDebug(){var d=document.getElementById('debug-box');d.style.display=d.style.display==='block'?'none':'block';}
+
+// ── On page load: check if cached file exists ─────────────────────────
+function checkCache(){
+  document.getElementById('upload-section').style.display='block';
+  loadFromIDB().then(function(rec){
+    if(rec && rec.buf){
+      // Auto-load silently
+      document.getElementById('cached-banner').style.display='none';
+      loadArrayBuffer(rec.buf, rec.name+' (cached '+rec.date+')', false);
+    }
+  }).catch(function(){/* no cache, show upload */});
+}
+checkCache();
+
+// ── Lookup ────────────────────────────────────────────────────────────
+function doLookup(){
+  var cpf=norm(document.getElementById('cpf-input').value.trim());
+  if(!cpf||!db)return;
+  var ra=document.getElementById('result-area');
+  var emp=db.empMap[cpf],train=db.trainMap[cpf]||[],edu=db.eduMap[cpf]||[];
+
+  if(!emp&&!train.length&&!edu.length){
+    var close=Object.keys(db.empMap).filter(function(k){return k.indexOf(cpf)!==-1||cpf.indexOf(k)!==-1;});
+    var hint=close.length?'<br>Did you mean: <strong>'+close.slice(0,3).map(esc).join(', ')+'</strong>?':'';
+    ra.innerHTML='<div class="alert alert-warn">No records found for <strong>'+esc(cpf)+'</strong>.'+hint+'</div>';
+    return;
+  }
+
+  var name= getF(emp,['NAME','EMPNAME','EMP_NAME','EMPLOYEE NAME','ENAME']);
+  var desig=getF(emp,['DESIGNATION','DESIG','DESIGN','POST']);
+  var level=getF(emp,['LEVEL','LVL','GRD','GRADE','PAY LEVEL']);
+  var loc=  getF(emp,['LOCATION','LOC','LOCCD','PLACE','STATION']);
+  var cpfD= getF(emp,['CPFNO','CPF NO','CPF_NO','CPF'])||cpf;
+
+  var metaHtml='';
+  if(cpfD)  metaHtml+='<div class="meta-item"><label>CPF No</label><span>'+esc(cpfD)+'</span></div>';
+  if(level) metaHtml+='<div class="meta-item"><label>Level</label><span>'+esc(level)+'</span></div>';
+  if(loc)   metaHtml+='<div class="meta-item"><label>Location</label><span>'+esc(loc)+'</span></div>';
+
+  // Training records — filter by years
+  var yearsVal=parseInt(document.getElementById('years-input').value)||5;
+  var cutoff=new Date();
+  cutoff.setFullYear(cutoff.getFullYear()-yearsVal);
+
+  // Parse dd-mm-yyyy or Excel serial to JS Date
+  function toDate(str){
+    if(!str)return null;
+    if(typeof str==='number'){try{var d=XLSX.SSF.parse_date_code(str);if(d)return new Date(d.y,d.m-1,d.d);}catch(e){}return null;}
+    var p=String(str).split('-');
+    if(p.length===3){
+      // dd-mm-yyyy
+      if(p[0].length<=2) return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+      // yyyy-mm-dd
+      return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+    }
+    var d=new Date(str); return isNaN(d)?null:d;
+  }
+
+  // Filter: keep rows where DATE2 >= cutoff (within last N years)
+  // If DATE2 is missing, include the record anyway
+  var filtered=train.filter(function(r){
+    var raw=r[Object.keys(r).find(function(k){return norm(k)==='DATE2'||norm(k)==='TO DATE'||norm(k)==='TODATE'||norm(k)==='END DATE'||norm(k)==='TDATE'||norm(k)==='DATETO';})||''];
+    if(raw===''||raw===undefined||raw===null)return true;
+    var d=toDate(raw);
+    return !d || d>=cutoff;
+  });
+
+  var trainHtml='';
+  var skipped=train.length-filtered.length;
+  if(!train.length){trainHtml='<div class="empty">No training records</div>';}
+  else if(!filtered.length){trainHtml='<div class="empty">No training in last '+yearsVal+' years.<br><small style="color:#aaa">'+train.length+' older record(s) hidden — increase years filter to see them.</small></div>';}
+  else{
+    if(skipped>0) trainHtml+='<div style="font-size:11px;color:#aaa;margin-bottom:8px;text-align:right">'+skipped+' older record(s) hidden • showing last '+yearsVal+' yrs</div>';
+    filtered.forEach(function(r){
+      var trg=  getF(r,['TRG','TRGNAME','TRAINING NAME','TRAINING','COURSE','TITLE']);
+      var trgno=getF(r,['TRGNO','TRG NO','TRGCODE','COURSE NO']);
+      var d1=   getDF(r,['DATE1','FROM DATE','FROMDATE','START DATE','FDATE','DATEFROM']);
+      var d2=   getDF(r,['DATE2','TO DATE','TODATE','END DATE','TDATE','DATETO']);
+      if(!trg)trg='(No name — open diagnostics)';
+      trainHtml+='<div class="record"><div class="rec-title">'+esc(trg)+'</div>';
+      if(trgno)trainHtml+='<div class="rec-code">'+esc(trgno)+'</div>';
+      if(d1||d2){trainHtml+='<div class="rec-dates">';if(d1)trainHtml+='<div class="date-item"><label>From</label><span>'+esc(d1)+'</span></div>';if(d2)trainHtml+='<div class="date-item"><label>To</label><span>'+esc(d2)+'</span></div>';trainHtml+='</div>';}
+      trainHtml+='</div>';
+    });
+  }
+
+  // Education records — now includes UNIVTEXT
+  var eduHtml='';
+  if(!edu.length){eduHtml='<div class="empty">No education records</div>';}
+  else{edu.forEach(function(r){
+    var qual=    getF(r,['QUALXT','QUAL TEXT','QUALIFICATION','QUALNAME','DEGREE']);
+    var qualno=  getF(r,['QUALNO','QUAL NO','QUALCODE']);
+    var sub=     getF(r,['SUBTXT','SUB TEXT','SUBJECT TEXT','SUBJECT NAME']);
+    var subCode= getF(r,['SUBJECT','SUB','SUBCD']);
+    var qstdtxt= getF(r,['QSTDTXT','QSTD TEXT','STANDARD TEXT','BOARD']);
+    var qstd=    getF(r,['QSTD','STD','STANDARD']);
+    var certDate=getDF(r,['CERTDATE','CERT DATE','DATE','PASSDATE','YEAR']);
+    var univ=    getF(r,['UNIVTEXT','UNIV TEXT','UNIVERSITY','UNIVERSITY NAME','UNIVNAME','UNIV']);
+    if(!qual)qual=qualno||'(No qualification name)';
+
+    eduHtml+='<div class="record">';
+    eduHtml+='<div class="rec-title">'+esc(qual)+'</div>';
+    if(sub||subCode)eduHtml+='<div class="rec-sub">'+esc(sub||(subCode?'Subject: '+subCode:''))+'</div>';
+    if(univ)eduHtml+='<div class="rec-univ">🎓 '+esc(univ)+'</div>';
+    var badges='';
+    if(qstdtxt||qstd)badges+='<span class="badge">'+esc(qstdtxt||qstd)+'</span>';
+    if(certDate)badges+='<span class="badge">📅 '+esc(certDate)+'</span>';
+    if(badges)eduHtml+='<div class="badges">'+badges+'</div>';
+    eduHtml+='</div>';
+  });}
+
+  ra.innerHTML=
+    '<div class="card">'+
+      '<div class="emp-top">'+
+        '<div class="avatar">'+esc(initials(name))+'</div>'+
+        '<div style="flex:1;min-width:0"><div class="emp-name">'+(name||'—')+'</div>'+(desig?'<div class="emp-desig">'+esc(desig)+'</div>':'')+' </div>'+
+      '</div>'+
+      (metaHtml?'<div class="emp-meta">'+metaHtml+'</div>':'')+
+    '</div>'+
+    '<div class="tabs">'+
+      '<button class="tab active" id="tab-t" onclick="switchTab(\'t\')">Training ('+train.length+')</button>'+
+      '<button class="tab" id="tab-e" onclick="switchTab(\'e\')">Education ('+edu.length+')</button>'+
+    '</div>'+
+    '<div id="pane-t">'+trainHtml+'</div>'+
+    '<div id="pane-e" style="display:none">'+eduHtml+'</div>';
+}
+
+function switchTab(t){
+  document.getElementById('tab-t').className='tab'+(t==='t'?' active':'');
+  document.getElementById('tab-e').className='tab'+(t==='e'?' active':'');
+  document.getElementById('pane-t').style.display=t==='t'?'block':'none';
+  document.getElementById('pane-e').style.display=t==='e'?'block':'none';
+}
+</script>
+</body>
+</html>
