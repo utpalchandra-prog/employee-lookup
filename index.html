@@ -455,26 +455,48 @@ function doLookup() {
   html+='<div class="date-box"><label>Retirement</label><span>'+(getDF(h,['DATE OF RETIREMENT'])||'N/A')+'</span></div>';
   html+='</div></div></div>';
 
-  // TAB 2: Dynamic Chronology Tracking (Postings & Grades)
+// TAB 2: Dynamic Chronology Tracking (Postings & Grades)
   html+='<div id="tab-timeline" class="tab-content"><div class="card">';
   
   var trackingHtml='';
-  // Postings Loop
-  for(var i=1;i<=10;i++){
-    var pKey=i===1?'POSTING1':'POSTING'+i;
-    var wKey=i===1?'W.E.F':'WEF_'+i;
-    if(i>1 && h['W.E.F_'+i]!==undefined) wKey='W.E.F_'+i;
 
-    var pVal=String(h[pKey]||'').trim();
-    var wVal=getDF(h,[wKey]);
+  // 1. Explicit Column Mapping Strategy for Postings (S to AJ)
+  // S=POSTING1, T=WEF1, U=POSTING2, V=WEF2, etc.
+  var postingCols = ['S', 'U', 'W', 'Y', 'AA', 'AC', 'AE', 'AG', 'AI'];
+  var wefCols     = ['T', 'V', 'X', 'Z', 'AB', 'AD', 'AF', 'AH', 'AJ'];
+
+  for(var i=0; i<postingCols.length; i++) {
+    var pVal = String(h[postingCols[i]] || '').trim();
+    var wVal = parseDate(h[wefCols[i]]);
     
-    if(pVal && pVal!=='0' && pVal!=='00.00.0000'){
+    if(pVal && pVal !== '0' && pVal !== '00.00.0000') {
       trackingHtml+='<div class="tl-item"><div class="tl-dot"></div><div class="tl-content">';
       trackingHtml+='<div class="tl-title">📍 '+esc(pVal)+'</div>';
       if(wVal) trackingHtml+='<div class="tl-date">w.e.f. '+esc(wVal)+'</div>';
       trackingHtml+='</div></div>';
     }
   }
+
+  // 2. Explicit Column Mapping Strategy for Levels (AK to BD)
+  // AK=LEVEL1, AL=WEF1, AM=LEVEL2, AN=WEF2, etc.
+  var levelCols    = ['AK', 'AM', 'AO', 'AQ', 'AS', 'AU', 'AW', 'AY', 'BA', 'BC'];
+  var levelWefCols = ['AL', 'AN', 'AP', 'AR', 'AT', 'AV', 'AX', 'AZ', 'BB', 'BD'];
+
+  for(var j=0; j<levelCols.length; j++) {
+    var lVal  = String(h[levelCols[j]] || '').trim();
+    var lwVal = parseDate(h[levelWefCols[j]]);
+
+    if(lVal && lVal !== '0' && lVal !== '00.00.0000') {
+      trackingHtml+='<div class="tl-item"><div class="tl-dot"></div><div class="tl-content">';
+      trackingHtml+='<div class="tl-badge">Grade '+esc(lVal)+'</div>';
+      if(lwVal) trackingHtml+='<div class="tl-date">Effective Date: '+esc(lwVal)+'</div>';
+      trackingHtml+='</div></div>';
+    }
+  }
+
+  if(!trackingHtml) html+='<div class="empty">No progression history logs populated</div>';
+  else html+='<div class="timeline">'+trackingHtml+'</div>';
+  html+='</div></div>';
 
   // Levels Loop
   for(var j=1;j<=10;j++){
