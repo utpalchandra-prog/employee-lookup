@@ -2,7 +2,7 @@
   "name": "Employee Lookup",
   "short_name": "EmpLookup",
   "description": "Training and Education Records Lookup",
-  "start_url": "./index.html",
+  "start_url": "/employee-lookup/",
   "display": "standalone",
   "background_color": "#f5f5f7",
   "theme_color": "#1a1a1a",
