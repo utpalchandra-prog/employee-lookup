@@ -1,7 +1,10 @@
 var CACHE = 'emp-lookup-v10';
 var ASSETS = [
-  '/employee-lookup/',
-  '/employee-lookup/index.html',
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
 ];
 
