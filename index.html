@@ -113,14 +113,13 @@
 <body>
 <div class="app">
   <h1>👤 Employee Lookup</h1>
-  <p class="sub">ONGC Employee Records</p>
+  <p class="sub">ONGC Employee Records Dashboard</p>
 
   <div class="install-banner" id="install-banner">
     <p>📱 Install this app on your home screen!</p>
     <button onclick="installApp()">Install</button>
   </div>
 
-  <!-- Upload -->
   <div id="upload-section">
     <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
       <div class="drop-icon">📊</div>
@@ -130,7 +129,6 @@
     <input type="file" id="file-input" accept=".xlsx,.xlsm,.xls" style="display:none">
   </div>
 
-  <!-- Loading -->
   <div id="loading-section" style="display:none">
     <div class="card" style="text-align:center;padding:28px 16px">
       <div class="spinner"></div>
@@ -140,7 +138,6 @@
     </div>
   </div>
 
-  <!-- Main -->
   <div id="main-section" style="display:none">
     <div class="file-bar">
       <span id="file-label">✓ Data loaded</span>
@@ -150,26 +147,23 @@
       </div>
     </div>
 
-    <!-- Search mode toggle -->
     <div class="mode-toggle">
       <button class="mode-btn active" id="mode-cpf" onclick="setMode('cpf')">🔢 Search by CPF</button>
       <button class="mode-btn" id="mode-name" onclick="setMode('name')">🔤 Search by Name</button>
     </div>
 
-    <!-- CPF search -->
     <div id="cpf-section">
       <div class="search-row">
-        <input type="text" id="cpf-input" class="cpf-input" placeholder="Enter CPF No (8 chars)" maxlength="8" onkeydown="if(event.key==='Enter')doLookup()">
+        <input type="text" id="cpf-input" class="cpf-input" placeholder="Enter CPF No" maxlength="8" onkeydown="if(event.key==='Enter')doLookup()">
         <button class="btn" onclick="doLookup()">Search</button>
       </div>
       <div class="years-bar">
         <span style="flex:1">📅 Show training from last</span>
-        <input type="number" id="years-input" value="5" min="1" max="99" onchange="if(db&&document.getElementById('result-area').innerHTML)doLookup()">
+        <input type="number" id="years-input" value="5" min="1" max="99" onchange="if(db) { var v=document.getElementById('cpf-input').value; if(v) doLookup(); }">
         <span>years only</span>
       </div>
     </div>
 
-    <!-- Name search -->
     <div id="name-section" style="display:none">
       <div class="search-row">
         <input type="search" id="name-input" placeholder="Type name e.g. Sandeep Agarwal" oninput="doNameSearch()">
@@ -187,31 +181,29 @@
 var db=null, debugInfo='', deferredPrompt=null, currentMode='cpf';
 var IDB_NAME='EmpLookupDB2', IDB_STORE='files', IDB_KEY='excel';
 
-// ── IndexedDB ─────────────────────────────────────────────────────────
 function openIDB(){return new Promise(function(res,rej){var r=indexedDB.open(IDB_NAME,1);r.onupgradeneeded=function(e){e.target.result.createObjectStore(IDB_STORE);};r.onsuccess=function(e){res(e.target.result);};r.onerror=rej;});}
 function saveToIDB(buf,name){return openIDB().then(function(idb){return new Promise(function(res,rej){var tx=idb.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).put({buf:buf,name:name,date:new Date().toLocaleDateString()},IDB_KEY);tx.oncomplete=res;tx.onerror=rej;});});}
 function loadFromIDB(){return openIDB().then(function(idb){return new Promise(function(res,rej){var tx=idb.transaction(IDB_STORE,'readonly');var r=tx.objectStore(IDB_STORE).get(IDB_KEY);r.onsuccess=function(e){res(e.target.result||null);};r.onerror=rej;});});}
 function deleteFromIDB(){return openIDB().then(function(idb){return new Promise(function(res,rej){var tx=idb.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).delete(IDB_KEY);tx.oncomplete=res;tx.onerror=rej;});});}
 
-// ── PWA ───────────────────────────────────────────────────────────────
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;document.getElementById('install-banner').style.display='flex';});
 function installApp(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(function(){deferredPrompt=null;document.getElementById('install-banner').style.display='none';});}
 window.addEventListener('appinstalled',function(){document.getElementById('install-banner').style.display='none';});
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(e){console.warn('SW:',e);});}
 
-// ── Utilities ─────────────────────────────────────────────────────────
 function norm(v){return String(v||'').trim().toUpperCase();}
 function pad(n){return String(n).padStart(2,'0');}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function initials(n){return(n||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase()||'?';}
+function initials(n){return(n||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w||'';}).join('').toUpperCase()||'?';}
 
 function parseDate(val){
   if(val===''||val===null||val===undefined)return '';
-  if(typeof val==='string'){
-    // handle dd.mm.yyyy format
-    if(/^\d{2}\.\d{2}\.\d{4}$/.test(val.trim())){var p=val.trim().split('.');return p[0]+'-'+p[1]+'-'+p[2];}
-    if(val.trim()==='00.00.0000'||val.trim()==='0.0.0')return '';
-    return val;
+  if(typeof val=='string'){
+    var s=val.trim();
+    if(/^\d{2}\.\d{2}\.\d{4}$/.test(s)){var p=s.split('.');return p+'-'+p+'-'+p;}
+    if(/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
+    if(s==='00.00.0000'||s==='0.0.0'||s==='0')return '';
+    return s;
   }
   if(typeof val==='number'){
     if(val===0)return '';
@@ -226,10 +218,10 @@ function toJSDate(val){
   if(!val||val===''||val===0)return null;
   if(typeof val==='number'){try{var d=XLSX.SSF.parse_date_code(val);if(d)return new Date(d.y,d.m-1,d.d);}catch(e){}return null;}
   var s=String(val).trim();
-  if(s==='00.00.0000'||s==='0.0.0'||s==='')return null;
-  if(/^\d{2}\.\d{2}\.\d{4}$/.test(s)){var p=s.split('.');return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));}
-  if(/^\d{2}-\d{2}-\d{4}$/.test(s)){var p=s.split('-');return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));}
-  var d=new Date(val);return isNaN(d)?null:d;
+  if(s==='00.00.0000'||s==='0.0.0'||s===''||s==='0')return null;
+  if(/^\d{2}\.\d{2}\.\d{4}$/.test(s)){var p=s.split('.');return new Date(parseInt(p),parseInt(p)-1,parseInt(p));}
+  if(/^\d{2}-\d{2}-\d{4}$/.test(s)){var p=s.split('-');return new Date(parseInt(p),parseInt(p)-1,parseInt(p));}
+  var d=new Date(val);return isNaN(d.getTime())?null:d;
 }
 
 function getF(obj,keys){
@@ -260,16 +252,12 @@ function setProgress(pct,msg,sub){
   if(sub!==undefined)document.getElementById('load-sub').textContent=sub;
 }
 
-// ── Metaphone (handles Indian names well) ────────────────────────────
 function metaphone(word){
   word=word.toUpperCase().replace(/[^A-Z]/g,'');
   if(!word)return '';
-  // Normalize common double-letter / silent combos
-  word=word.replace(/GH/g,'G').replace(/KH/g,'K').replace(/PH/g,'F')
-           .replace(/SH/g,'S').replace(/TH/g,'T').replace(/CH/g,'S');
+  word=word.replace(/GH/g,'G').replace(/KH/g,'K').replace(/PH/g,'F').replace(/SH/g,'S').replace(/TH/g,'T').replace(/CH/g,'S');
   var code='',prev='',vocals='AEIOU';
-  var map={B:'B',C:'S',D:'T',F:'F',G:'K',H:'',J:'J',K:'K',L:'L',
-           M:'M',N:'N',P:'P',Q:'K',R:'R',S:'S',T:'T',V:'F',W:'',X:'KS',Y:'',Z:'S'};
+  var map={B:'B',C:'S',D:'T',F:'F',G:'K',H:'',J:'J',K:'K',L:'L',M:'M',N:'N',P:'P',Q:'K',R:'R',S:'S',T:'T',V:'F',W:'',X:'KS',Y:'',Z:'S'};
   for(var i=0;i<word.length;i++){
     var c=word[i];
     if(vocals.indexOf(c)!==-1){if(i===0)code+='A';prev=c;continue;}
@@ -278,61 +266,41 @@ function metaphone(word){
   }
   return code;
 }
-// Keep soundex as fallback
 function soundex(s){
   s=s.toUpperCase().replace(/[^A-Z]/g,'');
   if(!s)return '';
   var map={B:'1',F:'1',P:'1',V:'1',C:'2',G:'2',J:'2',K:'2',Q:'2',S:'2',X:'2',Z:'2',D:'3',T:'3',L:'4',M:'5',N:'5',R:'6'};
-  var code=s[0],prev=map[s[0]]||'0';
+  var code=s,prev=map[s]||'0';
   for(var i=1;i<s.length&&code.length<4;i++){var c=map[s[i]]||'0';if(c!=='0'&&c!==prev)code+=c;prev=c;}
   return (code+'000').slice(0,4);
 }
-// Levenshtein distance (edit distance)
 function levenshtein(a,b){
   var m=a.length,n=b.length,dp=[],i,j;
   for(i=0;i<=m;i++){dp[i]=[i];}
-  for(j=0;j<=n;j++){dp[0][j]=j;}
-  for(i=1;i<=m;i++){for(j=1;j<=n;j++){
-    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
-  }}
+  for(j=0;j<=n;j++){dp[j]=j;}
+  for(i=1;i<=m;i++){for(j=1;j<=n;j++){dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);}}
   return dp[m][n];
 }
 
-// ── Process workbook ──────────────────────────────────────────────────
 function processWorkbook(wb,fileName){
-  var sn1=findSheet(wb,['Sheet1','Training','TRAINING','TRG'])||wb.SheetNames[0];
-  var sn2=findSheet(wb,['Sheet2','Education','EDUCATION','EDU'])||wb.SheetNames[1];
-  var sn3=findSheet(wb,['Sheet3','Employee','EMPLOYEES','EMP','MASTER'])||wb.SheetNames[2];
-  var sn4=findSheet(wb,['Sheet4','Posting','POSTING','Promotion','PROMOTION','History'])||wb.SheetNames[3];
-
-  debugInfo='=== SHEETS ===\n';
-  wb.SheetNames.forEach(function(s,i){debugInfo+=(i+1)+'. "'+s+'"\n';});
-  debugInfo+='\nTraining:"'+sn1+'" | Education:"'+sn2+'" | Employees:"'+sn3+'" | Sheet4:"'+sn4+'"\n';
+  var sn1=findSheet(wb,['Sheet1','Training','TRAINING','TRG'])||wb.SheetNames;
+  var sn2=findSheet(wb,['Sheet2','Education','EDUCATION','EDU'])||wb.SheetNames;
+  var sn3=findSheet(wb,['Sheet3','Employee','EMPLOYEES','EMP','MASTER'])||wb.SheetNames;
+  var sn4=findSheet(wb,['Sheet4','Posting','POSTING','Promotion','PROMOTION','History'])||wb.SheetNames;
 
   setProgress(40,'Reading sheets…','');
   function readSheet(sn){if(!sn)return[];return XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:'',raw:false});}
   var s1=readSheet(sn1),s2=readSheet(sn2),s3=readSheet(sn3),s4=readSheet(sn4);
 
-  debugInfo+='\n=== COLUMNS ===\n';
-  debugInfo+='Training:  '+(s1.length?Object.keys(s1[0]).join(' | '):'empty')+'\n';
-  debugInfo+='Education: '+(s2.length?Object.keys(s2[0]).join(' | '):'empty')+'\n';
-  debugInfo+='Employees: '+(s3.length?Object.keys(s3[0]).join(' | '):'empty')+'\n';
-  debugInfo+='Sheet4:    '+(s4.length?Object.keys(s4[0]).join(' | '):'empty')+'\n';
-  if(s2.length){debugInfo+='\n=== FIRST EDUCATION ROW ===\n';Object.keys(s2[0]).forEach(function(k){debugInfo+='"'+k+'" = "'+String(s2[0][k])+'"\n';});}
-  if(s2.length>1){debugInfo+='\n=== SECOND EDUCATION ROW ===\n';Object.keys(s2[1]).forEach(function(k){debugInfo+='"'+k+'" = "'+String(s2[1][k])+'"\n';});}
-  if(s4.length){debugInfo+='\n=== FIRST SHEET4 ROW ===\n';Object.keys(s4[0]).forEach(function(k){debugInfo+='"'+k+'" = "'+String(s4[0][k])+'"\n';});}
-
   setProgress(70,'Indexing records…','');
   var empMap={},trainMap={},eduMap={},sheet4Map={};
-  // Also build name search index
-  var nameIndex=[]; // [{name, cpf, desig, level, loc, sdx:[]}]
+  var nameIndex=[];
 
   s3.forEach(function(r){var c=cpfKey(r);if(c){empMap[c]=r;}});
   s1.forEach(function(r){var c=cpfKey(r);if(!c)return;if(!trainMap[c])trainMap[c]=[];trainMap[c].push(r);});
   s2.forEach(function(r){var c=cpfKey(r);if(!c)return;if(!eduMap[c])eduMap[c]=[];eduMap[c].push(r);});
   s4.forEach(function(r){var c=cpfKey(r);if(c)sheet4Map[c]=r;});
 
-  // Build name index from sheet3 (and supplement from sheet4)
   var allCPFs={};
   Object.keys(empMap).forEach(function(c){allCPFs[c]=1;});
   Object.keys(sheet4Map).forEach(function(c){allCPFs[c]=1;});
@@ -350,25 +318,9 @@ function processWorkbook(wb,fileName){
       desig:getF(r,['DESIGNATION','DESIG','DESIGN','POST','DESIGNATION TEXT']),
       level:getF(r,['LEVEL','LVL']),
       loc:getF(r,['LOCATION','LOC','LOCCD','PERSONAL AREA']),
-      gender:getF(r,['GENDER KEY','GENDER']),
       sdx:sdx, mtf:mtf, words:words.map(function(w){return w.toUpperCase();})
     });
   });
-
-  var sampleCPF=Object.keys(empMap)[0]||'';
-  debugInfo+='\n=== COUNTS ===\nEmployees: '+Object.keys(empMap).length+'\nTraining: '+Object.keys(trainMap).length+'\nEducation: '+Object.keys(eduMap).length+'\nSheet4: '+Object.keys(sheet4Map).length+'\nName index: '+nameIndex.length;
-  // Show first 3 name index entries for debugging
-  debugInfo+='\n\n=== NAME INDEX SAMPLE (first 3) ===\n';
-  nameIndex.slice(0,3).forEach(function(e){
-    debugInfo+=e.cpf+' | '+e.name+' | sdx:'+e.sdx.join(',')+'  mtf:'+e.mtf.join(',')+'\n';
-  });
-  if(nameIndex.length===0){
-    debugInfo+='WARNING: Name index is EMPTY!\n';
-    debugInfo+='Sheet3 columns: '+(s3.length?Object.keys(s3[0]).join(' | '):'no data')+'\n';
-    debugInfo+='Sheet4 columns: '+(s4.length?Object.keys(s4[0]).join(' | '):'no data')+'\n';
-  }
-  if(sampleCPF)debugInfo+='\n\nSample CPF: "'+sampleCPF+'"';
-  document.getElementById('debug-box').textContent=debugInfo;
 
   db={empMap:empMap,trainMap:trainMap,eduMap:eduMap,sheet4Map:sheet4Map,nameIndex:nameIndex};
   setProgress(100,'Ready!','');
@@ -376,16 +328,15 @@ function processWorkbook(wb,fileName){
     document.getElementById('loading-section').style.display='none';
     document.getElementById('upload-section').style.display='none';
     document.getElementById('main-section').style.display='block';
-    document.getElementById('file-label').textContent='✓ '+Object.keys(empMap).length+' emp · '+s1.length+' trg · '+s2.length+' edu · '+Object.keys(sheet4Map).length+' hist';
+    document.getElementById('file-label').textContent='✓ Data Mapped Safely';
     document.getElementById('cpf-input').focus();
   },400);
 }
 
-// ── File loading ──────────────────────────────────────────────────────
 function loadArrayBuffer(buf,fileName,saveCache){
   document.getElementById('upload-section').style.display='none';
   document.getElementById('loading-section').style.display='block';
-  setProgress(5,'Reading file…','Large files take a moment — please wait');
+  setProgress(5,'Reading file…','Processing records — please wait');
   setTimeout(function(){
     try{
       setProgress(20,'Parsing Excel…','');
@@ -395,22 +346,17 @@ function loadArrayBuffer(buf,fileName,saveCache){
     }catch(err){
       document.getElementById('loading-section').style.display='none';
       document.getElementById('upload-section').style.display='block';
-      alert('Could not read file: '+err.message+'\n\nTip: Re-save as .xlsx in Excel and try again.');
+      alert('Could not read file: '+err.message);
     }
   },50);
 }
 
 document.getElementById('file-input').addEventListener('change',function(e){
-  var file=e.target.files[0];if(!file)return;
+  var file=e.target.files;if(!file)return;
   var reader=new FileReader();
   reader.onload=function(ev){loadArrayBuffer(ev.target.result,file.name,true);};
-  reader.onerror=function(){alert('File read failed.');};
   reader.readAsArrayBuffer(file);
 });
-var dz=document.getElementById('drop-zone');
-dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});
-dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});
-dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('drag');var file=e.dataTransfer.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadArrayBuffer(ev.target.result,file.name,true);};reader.readAsArrayBuffer(file);});
 
 function reloadFile(){db=null;document.getElementById('main-section').style.display='none';document.getElementById('result-area').innerHTML='';document.getElementById('cpf-input').value='';document.getElementById('name-input').value='';document.getElementById('name-results').innerHTML='';document.getElementById('file-input').value='';checkCache();}
 function clearCache(){if(!confirm('Remove cached file from this device?'))return;deleteFromIDB().then(function(){db=null;document.getElementById('main-section').style.display='none';document.getElementById('result-area').innerHTML='';document.getElementById('upload-section').style.display='block';document.getElementById('file-input').value='';});}
@@ -424,7 +370,6 @@ function checkCache(){
 }
 checkCache();
 
-// ── Mode toggle ───────────────────────────────────────────────────────
 function setMode(mode){
   currentMode=mode;
   document.getElementById('mode-cpf').className='mode-btn'+(mode==='cpf'?' active':'');
@@ -436,50 +381,35 @@ function setMode(mode){
   else document.getElementById('cpf-input').focus();
 }
 
-// ── Name search ───────────────────────────────────────────────────────
+function selectEmployee(cpf) {
+  document.getElementById('cpf-input').value = cpf;
+  setMode('cpf');
+  doLookup();
+}
+
 function doNameSearch(){
   var q=document.getElementById('name-input').value.trim();
   var nr=document.getElementById('name-results');
   if(!db||q.length<2){nr.innerHTML='';return;}
 
-  // Debug: show what metaphone/soundex the query produces
-  var dbgWords=q.toUpperCase().split(/\s+/).filter(Boolean);
-  var dbgInfo='Query: '+dbgWords.map(function(w){return w+'→mtf:'+metaphone(w)+' sdx:'+soundex(w);}).join(' | ');
-  // Find employees with similar names for comparison
-  var similar=db.nameIndex.filter(function(e){
-    return e.name.toUpperCase().indexOf(dbgWords[0].slice(0,5))!==-1;
-  }).slice(0,3).map(function(e){return e.name+'(mtf:'+e.mtf[e.mtf.length-1]+')';}).join(', ');
-  if(similar) dbgInfo+='\nSimilar in index: '+similar;
-  document.getElementById('debug-box').textContent=dbgInfo+(document.getElementById('debug-box').textContent?'\n---\n'+document.getElementById('debug-box').textContent:'');
-
   var words=q.toUpperCase().split(/\s+/).filter(Boolean);
   var qSdx=words.map(soundex);
   var qMtf=words.map(metaphone);
 
-  // Score each employee using metaphone + soundex + substring
-  // NOTE: Levenshtein only applied to top candidates (too slow for 65k employees)
   var scored=[];
   db.nameIndex.forEach(function(emp){
     var score=0;
     words.forEach(function(w,i){
-      // 1. Exact substring match in full name — highest score
       if(emp.name.toUpperCase().indexOf(w)!==-1) score+=20;
-
       emp.words.forEach(function(ew){
-        // 2. Word starts with query word
         if(ew.indexOf(w)===0) score+=8;
-
-        // 3. Metaphone match — handles AGGARWAL/AGARWAL/AGRAWAL etc.
         if(qMtf[i] && metaphone(ew)===qMtf[i]) score+=15;
-
-        // 4. Soundex match — additional phonetic fuzzy
         if(qSdx[i] && soundex(ew)===qSdx[i]) score+=10;
       });
     });
     if(score>0) scored.push({emp:emp,score:score});
   });
 
-  // Apply Levenshtein ONLY on top 200 candidates (avoids browser freeze)
   var top200 = scored.sort(function(a,b){return b.score-a.score;}).slice(0,200);
   top200.forEach(function(item){
     words.forEach(function(w){
@@ -490,16 +420,12 @@ function doNameSearch(){
       });
     });
   });
-  // Re-sort after levenshtein boost
-  var scored = top200;
 
-  // Sort by score desc
-  scored.sort(function(a,b){return b.score-a.score;});
-  var top=scored.slice(0,20);
+  top200.sort(function(a,b){return b.score-a.score;});
+  var top=top200.slice(0,20);
 
   if(!top.length){nr.innerHTML='<div class="empty">No matching employees found</div>';return;}
 
-  // Highlight matched text
   function highlight(text, words){
     var result=esc(text);
     words.forEach(function(w){
@@ -509,7 +435,7 @@ function doNameSearch(){
     return result;
   }
 
-  var html='<p style="font-size:11px;color:#aaa;margin-bottom:8px">'+top.length+(scored.length>20?' of '+scored.length:'')+' results — tap to view</p>';
+  var html='<p style="font-size:11px;color:#aaa;margin-bottom:8px">'+top.length+' results — tap to view</p>';
   top.forEach(function(item){
     var e=item.emp;
     html+='<div class="name-result" onclick="selectEmployee(\''+esc(e.cpf)+'\')">';
@@ -524,226 +450,151 @@ function doNameSearch(){
   nr.innerHTML=html;
 }
 
-function selectEmployee(cpf){
-  // Switch to CPF mode and load
-  document.getElementById('name-results').innerHTML='';
-  document.getElementById('name-input').value='';
-  setMode('cpf');
-  document.getElementById('cpf-input').value=cpf;
-  doLookup();
-}
-
-// ── CPF Lookup ────────────────────────────────────────────────────────
-function doLookup(){
-  var cpf=norm(document.getElementById('cpf-input').value.trim());
-  if(!cpf||!db)return;
-  var ra=document.getElementById('result-area');
-  var emp=db.empMap[cpf],train=db.trainMap[cpf]||[],edu=db.eduMap[cpf]||[],s4=db.sheet4Map[cpf];
-
-  if(!emp&&!train.length&&!edu.length&&!s4){
-    var close=Object.keys(db.empMap).filter(function(k){return k.indexOf(cpf)!==-1||cpf.indexOf(k)!==-1;});
-    var hint=close.length?'<br>Did you mean: <strong>'+close.slice(0,3).map(esc).join(', ')+'</strong>?':'';
-    ra.innerHTML='<div class="alert alert-warn">No records found for <strong>'+esc(cpf)+'</strong>.'+hint+'</div>';
+function doLookup() {
+  var rawCpf=document.getElementById('cpf-input').value.trim();
+  var area=document.getElementById('result-area');
+  if(!db){alert('Please load data file first'); return;}
+  if(!rawCpf){area.innerHTML=''; return;}
+  
+  var targetCpf=norm(rawCpf);
+  var master=db.empMap[targetCpf]||db.sheet4Map[targetCpf];
+  
+  if(!master){
+    area.innerHTML='<div class="card"><div class="empty">No master file entry found for CPF: '+esc(targetCpf)+'</div></div>';
     return;
   }
 
-  // Employee card
-  var name=  getF(emp||s4,['NAME','EMPNAME','EMP_NAME']);
-  var desig= getF(emp||s4,['DESIGNATION','DESIG','DESIGN','POST','DESIGNATION TEXT']);
-  var level= getF(emp||s4,['LEVEL','LVL']);
-  var loc=   getF(emp||s4,['LOCATION','LOC','LOCCD','PERSONAL AREA']);
-  var cpfD=  getF(emp||s4,['CPFNO','CPF NO','CPF_NO','CPF'])||cpf;
-  var gender=getF(emp||s4,['GENDER KEY','GENDER']);
-  var cat=   getF(emp||s4,['CATEGORY']);
-  var disc=  getF(emp||s4,['DISCIPLINE TEXT','DISCIPLINE']);
-  var subdisc=getF(emp||s4,['SUB DISP TEXT','SUB DISCIPLINE']);
+  var name=getF(master,['NAME','EMPNAME','EMP_NAME']);
+  var desig=getF(master,['DESIGNATION','DESIG','DESIGN','POST']);
+  var level=getF(master,['LEVEL','LVL']);
+  var loc=getF(master,['LOCATION','LOC','LOCCD']);
 
-  var metaHtml='';
-  if(cpfD)   metaHtml+='<div class="meta-item"><label>CPF No</label><span>'+esc(cpfD)+'</span></div>';
-  if(level)  metaHtml+='<div class="meta-item"><label>Level</label><span>'+esc(level)+'</span></div>';
-  if(loc)    metaHtml+='<div class="meta-item"><label>Location</label><span>'+esc(loc)+'</span></div>';
-  if(gender) metaHtml+='<div class="meta-item"><label>Gender</label><span>'+esc(gender)+'</span></div>';
-  if(cat)    metaHtml+='<div class="meta-item"><label>Category</label><span>'+esc(cat)+'</span></div>';
-  if(disc)   metaHtml+='<div class="meta-item full"><label>Discipline</label><span>'+esc(disc)+(subdisc?' / '+esc(subdisc):'')+'</span></div>';
+  var html='<div class="card">';
+  html+='<div class="emp-top">';
+  html+='<div class="avatar">'+initials(name)+'</div>';
+  html+='<div><div class="emp-name">'+esc(name)+'</div><div class="emp-desig">'+esc(desig)+'</div></div>';
+  html+='</div>';
+  
+  html+='<div class="emp-meta">';
+  html+='<div class="meta-item"><label>CPF Number</label><span>'+esc(targetCpf)+'</span></div>';
+  html+='<div class="meta-item"><label>Current Level</label><span>'+esc(level||'N/A')+'</span></div>';
+  html+='<div class="meta-item full"><label>Current Location</label><span>📍 '+esc(loc||'N/A')+'</span></div>';
+  html+='</div></div>';
 
-  // Key dates from Sheet4
-  var dojONGC='', dojArea='', dojPost='', effProm='', dob='', dor='';
-  if(s4){
-    dojONGC=getDF(s4,['DATE OF JOIN ONGC']);
-    dojArea= getDF(s4,['DATE OF JOIN PER AREA']);
-    dojPost= getDF(s4,['DATE OF JOIN POST']);
-    effProm= getDF(s4,['EFF DATE PROM']);
-    dob=     getDF(s4,['DATE OF BIRTH']);
-    dor=     getDF(s4,['DATE OF RETIREMENT']);
+  var h=db.sheet4Map[targetCpf];
+  if(h){
+    html+='<div class="card">';
+    html+='<h3>📅 Milestone Chronology</h3>';
+    html+='<div class="dates-grid">';
+    if(getDF(h,['DATE OF BIRTH'])) html+='<div class="date-box"><label>DOB</label><span>'+getDF(h,['DATE OF BIRTH'])+'</span></div>';
+    if(getDF(h,['DATE OF JOIN ONGC'])) html+='<div class="date-box"><label>Join ONGC</label><span>'+getDF(h,['DATE OF JOIN ONGC'])+'</span></div>';
+    if(getDF(h,['DATE OF JOIN PER AREA'])) html+='<div class="date-box"><label>Join Per Area</label><span>'+getDF(h,['DATE OF JOIN PER AREA'])+'</span></div>';
+    if(getDF(h,['DATE OF JOIN POST'])) html+='<div class="date-box"><label>Join Post</label><span>'+getDF(h,['DATE OF JOIN POST'])+'</span></div>';
+    if(getDF(h,['EFF DATE PROM'])) html+='<div class="date-box"><label>Eff Date Prom</label><span>'+getDF(h,['EFF DATE PROM'])+'</span></div>';
+    if(getDF(h,['DATE OF RETIREMENT'])) html+='<div class="date-box"><label>Retirement</label><span>'+getDF(h,['DATE OF RETIREMENT'])+'</span></div>';
+    html+='</div></div>';
+
+    // Parse Wide Posting Columns Dynamic Loop
+    var postingHtml='';
+    for(var i=1;i<=10;i++){
+      var pKey=i===1?'POSTING1':'POSTING'+i;
+      var wKey=i===1?'W.E.F':'WEF_'+i;
+      
+      // Fallback lookup step for alternative formatting styles
+      if(i>1 && h['W.E.F_'+i]!==undefined) wKey='W.E.F_'+i;
+      if(h[pKey]===undefined){
+        var keys=Object.keys(h);
+        var fIdx=keys.find(function(k){return norm(k)==='POSTING'+i;});
+        if(fIdx) pKey=fIdx;
+      }
+
+      var locVal=String(h[pKey]||'').trim();
+      var wefVal=parseDate(h[wKey]);
+
+      if(locVal && locVal!=='00.00.0000' && locVal!=='0' && locVal!=='0.0.0'){
+        postingHtml+='<div class="tl-item"><div class="tl-dot"></div><div class="tl-content">';
+        postingHtml+='<div class="tl-title">📍 '+esc(locVal)+'</div>';
+        if(wefVal) postingHtml+='<div class="tl-date">w.e.f. '+esc(wefVal)+'</div>';
+        postingHtml+='</div></div>';
+      }
+    }
+    if(postingHtml){
+      html+='<div class="card"><h3>📋 Posting Changes Timeline</h3><div class="timeline">'+postingHtml+'</div></div>';
+    }
+
+    // Parse Wide Level Columns Dynamic Loop
+    var levelHtml='';
+    for(var j=1;j<=10;j++){
+      var lKey='LEVEL'+j;
+      var lwKey=j===1?'Level W.E.F':'Level W.E.F_'+j;
+      
+      if(j>1 && h['Level W.E.F_'+j]!==undefined) lwKey='Level W.E.F_'+j;
+
+      var lvlVal=String(h[lKey]||'').trim();
+      var lvlWef=parseDate(h[lwKey]);
+
+      if(lvlVal && lvlVal!=='00.00.0000' && lvlVal!=='0' && lvlVal!=='0.0.0'){
+        levelHtml+='<div class="tl-item"><div class="tl-dot"></div><div class="tl-content">';
+        levelHtml+='<div class="tl-badge">Grade '+esc(lvlVal)+'</div>';
+        if(lvlWef) levelHtml+='<div class="tl-date">Effective Date: '+esc(lvlWef)+'</div>';
+        levelHtml+='</div></div>';
+      }
+    }
+    if(levelHtml){
+      html+='<div class="card"><h3>📈 Promotion & Scale History</h3><div class="timeline">'+levelHtml+'</div></div>';
+    }
   }
-  var datesHtml='';
-  if(dojONGC||dojArea||dojPost||effProm||dob||dor){
-    datesHtml='<div class="dates-grid">';
-    if(dojONGC)datesHtml+='<div class="date-box"><label>Joined ONGC</label><span>'+esc(dojONGC)+'</span></div>';
-    if(dojArea) datesHtml+='<div class="date-box"><label>Joined Area</label><span>'+esc(dojArea)+'</span></div>';
-    if(dojPost) datesHtml+='<div class="date-box"><label>Joined Post</label><span>'+esc(dojPost)+'</span></div>';
-    if(effProm) datesHtml+='<div class="date-box"><label>Promotion Eff.</label><span>'+esc(effProm)+'</span></div>';
-    if(dob)     datesHtml+='<div class="date-box"><label>Date of Birth</label><span>'+esc(dob)+'</span></div>';
-    if(dor)     datesHtml+='<div class="date-box"><label>Retirement</label><span>'+esc(dor)+'</span></div>';
-    datesHtml+='</div>';
-  }
 
-  // ── Training tab ──────────────────────────────────────────────────
-  var yEl=document.getElementById('years-input');
-  var yearsVal=yEl?parseInt(yEl.value)||5:5;
-  var cutoff=new Date();cutoff.setFullYear(cutoff.getFullYear()-yearsVal);
-  var filtered=train.filter(function(r){
-    var ok=Object.keys(r);
-    var raw='';
-    var f=ok.find(function(k){return['DATE2','TO DATE','TODATE','END DATE','TDATE','DATETO'].indexOf(norm(k))!==-1;});
-    if(f)raw=r[f];
-    if(raw===''||raw===undefined||raw===null)return true;
-    var d=toJSDate(raw);return !d||d>=cutoff;
-  });
-  var skipped=train.length-filtered.length;
-  var trainHtml='';
-  if(!train.length){trainHtml='<div class="empty">No training records</div>';}
-  else if(!filtered.length){trainHtml='<div class="empty">No training in last '+yearsVal+' years<br><small>'+train.length+' older record(s) hidden — increase years filter</small></div>';}
-  else{
-    if(skipped>0)trainHtml+='<div style="font-size:11px;color:#aaa;margin-bottom:8px;text-align:right">'+skipped+' older record(s) hidden &bull; last '+yearsVal+' yrs</div>';
-    filtered.forEach(function(r){
-      var trg=  getF(r,['TRG','TRGNAME','TRAINING NAME','TRAINING','COURSE','TITLE']);
-      var trgno=getF(r,['TRGNO','TRG NO','TRGCODE','COURSE NO']);
-      var d1=   getDF(r,['DATE1','FROM DATE','FROMDATE','START DATE','FDATE','DATEFROM']);
-      var d2=   getDF(r,['DATE2','TO DATE','TODATE','END DATE','TDATE','DATETO']);
-      if(!trg)trg='(No name — open diagnostics)';
-      trainHtml+='<div class="record"><div class="rec-title">'+esc(trg)+'</div>';
-      if(trgno)trainHtml+='<div class="rec-code">'+esc(trgno)+'</div>';
-      if(d1||d2){trainHtml+='<div class="rec-dates">';if(d1)trainHtml+='<div class="date-item"><label>From</label><span>'+esc(d1)+'</span></div>';if(d2)trainHtml+='<div class="date-item"><label>To</label><span>'+esc(d2)+'</span></div>';trainHtml+='</div>';}
-      trainHtml+='</div>';
+  // Education Block
+  var edu=db.eduMap[targetCpf]||[];
+  html+='<div class="card"><h3>🎓 Education Profiles</h3>';
+  if(!edu.length) html+='<div class="empty">No recorded education dataset listed</div>';
+  else {
+    edu.forEach(function(ed){
+      html+='<div class="record">';
+      html+='<div class="rec-title">'+esc(ed.QSTDTXT||ed.QUALXT)+'</div>';
+      if(ed.SUBTXT) html+='<div class="rec-sub">Subject: '+esc(ed.SUBTXT)+'</div>';
+      if(ed.UNIVTEXT) html+='<div class="rec-univ">'+esc(ed.UNIVTEXT)+'</div>';
+      if(ed.CERTDATE) html+='<div class="rec-dates"><div class="date-item"><label>Certificate Issued</label><span>'+parseDate(ed.CERTDATE)+'</span></div></div>';
+      html+='</div>';
     });
   }
+  html+='</div>';
 
-  // ── Education tab ─────────────────────────────────────────────────
-  var eduHtml='';
-  if(!edu.length){eduHtml='<div class="empty">No education records</div>';}
-  else{edu.forEach(function(r){
-    var qual=    getF(r,['QUALXT','QUAL TEXT','QUALIFICATION','QUALNAME','DEGREE']);
-    var qualno=  getF(r,['QUALNO','QUAL NO','QUALCODE']);
-    var sub=     getF(r,['SUBTXT','SUB TEXT','SUBJECT TEXT','SUBJECT NAME']);
-    var subCode= getF(r,['SUBJECT','SUB','SUBCD']);
-    var qstdtxt= getF(r,['QSTDTXT','QSTD TEXT','STANDARD TEXT','BOARD']);
-    var qstd=    getF(r,['QSTD','STD','STANDARD']);
-    var certDate=getDF(r,['CERTDATE','CERT DATE','DATE','PASSDATE','YEAR']);
-    var univ=    getF(r,['UNIVTEXT','UNIV TEXT','UNIVERSITY','UNIVERSITY NAME','UNIVNAME','UNIV']);
-    if(!qual)qual=qualno||'(No qualification name)';
-    eduHtml+='<div class="record"><div class="rec-title">'+esc(qual)+'</div>';
-    if(sub||subCode)eduHtml+='<div class="rec-sub">'+esc(sub||(subCode?'Subject: '+subCode:''))+'</div>';
-    if(univ)eduHtml+='<div class="rec-univ">🎓 '+esc(univ)+'</div>';
-    var badges='';
-    if(qstdtxt||qstd)badges+='<span class="badge">'+esc(qstdtxt||qstd)+'</span>';
-    if(certDate)badges+='<span class="badge">📅 '+esc(certDate)+'</span>';
-    if(badges)eduHtml+='<div class="badges">'+badges+'</div>';
-    eduHtml+='</div>';
-  });}
-
-  // ── Posting history tab ───────────────────────────────────────────
-  var postHtml='';
-  if(!s4){postHtml='<div class="empty">No posting history available</div>';}
-  else{
-    var postings=[];
-    for(var i=1;i<=10;i++){
-      var loc2=getF(s4,['POSTING'+i]);
-      var wef= getDF(s4,['W.E.F']);
-      // W.E.F columns repeat — need to get by position
-      // Use all keys and find POSTING+i and its paired W.E.F
-      var keys=Object.keys(s4);
-      var pidx=keys.findIndex(function(k){return norm(k)==='POSTING'+i;});
-      if(pidx===-1)break;
-      var pval=s4[keys[pidx]];
-      if(!pval||String(pval).trim()==='')continue;
-      // W.E.F is the next column after POSTINGi
-      var wefVal=pidx+1<keys.length?s4[keys[pidx+1]]:'';
-      var wefDate=parseDate(wefVal);
-      if(wefDate==='00.00.0000'||wefDate==='0.0.0')wefDate='';
-      postings.push({num:i,loc:String(pval).trim(),wef:wefDate});
+  // Training Block (With Filter)
+  var trg=db.trainMap[targetCpf]||[];
+  var cutoffYrs=parseFloat(document.getElementById('years-input').value)||5;
+  var today=new Date();
+  
+  html+='<div class="card"><h3>🏋️ Completed Training Ledgers</h3>';
+  var validTrgCount=0;
+  
+  var trgHtml='';
+  trg.forEach(function(t){
+    var targetDate=toJSDate(t.DATE2);
+    var skip=false;
+    if(targetDate){
+      var diffTime=Math.abs(today-targetDate);
+      var diffYrs=diffTime/(1000*60*60*24*365.25);
+      if(diffYrs>cutoffYrs) skip=true;
     }
-    if(!postings.length){postHtml='<div class="empty">No posting records found</div>';}
-    else{
-      postHtml='<div class="timeline">';
-      postings.forEach(function(p,idx){
-        var isCurrent=idx===postings.length-1;
-        postHtml+='<div class="tl-item">';
-        postHtml+='<div class="tl-dot'+(isCurrent?' current':'')+'"></div>';
-        postHtml+='<div class="tl-content">';
-        if(isCurrent)postHtml+='<span class="tl-badge">Current</span><br>';
-        postHtml+='<div class="tl-title">'+esc(p.loc)+'</div>';
-        if(p.wef)postHtml+='<div class="tl-date">W.E.F: '+esc(p.wef)+'</div>';
-        postHtml+='</div></div>';
-      });
-      postHtml+='</div>';
+    if(!skip){
+      validTrgCount++;
+      trgHtml+='<div class="record">';
+      trgHtml+='<div class="rec-title">'+esc(t.TRG)+'</div>';
+      if(t.TRGNO) html+='<div class="rec-code">Code: '+esc(t.TRGNO)+'</div>';
+      trgHtml+='<div class="rec-dates">';
+      trgHtml+='<div class="date-item"><label>From</label><span>'+parseDate(t.DATE1)+'</span></div>';
+      trgHtml+='<div class="date-item"><label>To Date</label><span>'+parseDate(t.DATE2)+'</span></div>';
+      trgHtml+='</div></div>';
     }
-  }
-
-  // ── Promotion/Level history tab ───────────────────────────────────
-  var promHtml='';
-  if(!s4){promHtml='<div class="empty">No promotion history available</div>';}
-  else{
-    var levels=[];
-    var keys=Object.keys(s4);
-    for(var i=1;i<=10;i++){
-      var lidx=keys.findIndex(function(k){return norm(k)==='LEVEL'+i;});
-      if(lidx===-1)break;
-      var lval=s4[keys[lidx]];
-      if(!lval||String(lval).trim()==='')continue;
-      var lwefVal=lidx+1<keys.length?s4[keys[lidx+1]]:'';
-      var lwefDate=parseDate(lwefVal);
-      if(lwefDate==='00.00.0000'||lwefDate==='0.0.0')lwefDate='';
-      levels.push({num:i,level:String(lval).trim(),wef:lwefDate});
-    }
-    if(!levels.length){promHtml='<div class="empty">No promotion records found</div>';}
-    else{
-      promHtml='<div class="timeline">';
-      levels.forEach(function(p,idx){
-        var isCurrent=idx===levels.length-1;
-        promHtml+='<div class="tl-item">';
-        promHtml+='<div class="tl-dot'+(isCurrent?' current':'')+'"></div>';
-        promHtml+='<div class="tl-content">';
-        if(isCurrent)promHtml+='<span class="tl-badge">Current</span><br>';
-        promHtml+='<div class="tl-title" style="font-size:16px;font-weight:700">'+esc(p.level)+'</div>';
-        if(p.wef)promHtml+='<div class="tl-date">W.E.F: '+esc(p.wef)+'</div>';
-        promHtml+='</div></div>';
-      });
-      promHtml+='</div>';
-    }
-  }
-
-  ra.innerHTML=
-    '<div class="card">'+
-      '<div class="emp-top">'+
-        '<div class="avatar">'+esc(initials(name))+'</div>'+
-        '<div style="flex:1;min-width:0">'+
-          '<div class="emp-name">'+(name||'—')+'</div>'+
-          (desig?'<div class="emp-desig">'+esc(desig)+'</div>':'')+
-        '</div>'+
-      '</div>'+
-      (metaHtml?'<div class="emp-meta">'+metaHtml+'</div>':'')+
-      datesHtml+
-    '</div>'+
-    '<div class="tabs">'+
-      '<button class="tab active" id="tab-t"  onclick="switchTab(\'t\')">Training ('+filtered.length+(skipped>0?'+'+skipped:'')+')</button>'+
-      '<button class="tab"        id="tab-e"  onclick="switchTab(\'e\')">Education ('+edu.length+')</button>'+
-      '<button class="tab"        id="tab-p"  onclick="switchTab(\'p\')">Postings</button>'+
-      '<button class="tab"        id="tab-l"  onclick="switchTab(\'l\')">Levels</button>'+
-    '</div>'+
-    '<div id="pane-t">'+trainHtml+'</div>'+
-    '<div id="pane-e" style="display:none">'+eduHtml+'</div>'+
-    '<div id="pane-p" style="display:none">'+postHtml+'</div>'+
-    '<div id="pane-l" style="display:none">'+promHtml+'</div>';
-}
-
-function switchTab(t){
-  ['t','e','p','l'].forEach(function(id){
-    var tab=document.getElementById('tab-'+id);
-    var pane=document.getElementById('pane-'+id);
-    if(tab)tab.className='tab'+(id===t?' active':'');
-    if(pane)pane.style.display=id===t?'block':'none';
   });
+
+  if(!validTrgCount) html+='<div class="empty">No courses found within the last '+cutoffYrs+' years</div>';
+  else html+=trgHtml;
+  html+='</div>';
+
+  area.innerHTML=html;
 }
 </script>
 </body>
